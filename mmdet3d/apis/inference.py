@@ -75,6 +75,12 @@ def init_model(config, checkpoint=None, device='cuda:0'):
                        'Some functions are not supported for now.')
     model.to(device)
     model.eval()
+
+    if device == 'npu':
+        from mmcv.device.npu import NPUDataParallel
+        model = NPUDataParallel(model)
+        model.cfg = config
+
     return model
 
 

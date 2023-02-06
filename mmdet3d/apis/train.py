@@ -9,10 +9,6 @@ from mmcv.runner import (HOOKS, DistSamplerSeedHook, EpochBasedRunner,
                          Fp16OptimizerHook, OptimizerHook, build_optimizer,
                          build_runner, get_dist_info)
 from mmcv.utils import build_from_cfg
-from torch import distributed as dist
-
-from mmdet3d.datasets import build_dataset
-from mmdet3d.utils import find_latest_checkpoint
 from mmdet.core import DistEvalHook as MMDET_DistEvalHook
 from mmdet.core import EvalHook as MMDET_EvalHook
 from mmdet.datasets import build_dataloader as build_mmdet_dataloader
@@ -22,6 +18,10 @@ from mmseg.core import DistEvalHook as MMSEG_DistEvalHook
 from mmseg.core import EvalHook as MMSEG_EvalHook
 from mmseg.datasets import build_dataloader as build_mmseg_dataloader
 from mmseg.utils import get_root_logger as get_mmseg_root_logger
+from torch import distributed as dist
+
+from mmdet3d.datasets import build_dataset
+from mmdet3d.utils import find_latest_checkpoint
 
 
 def init_random_seed(seed=None, device='cuda'):
@@ -74,6 +74,21 @@ def set_random_seed(seed, deterministic=False):
         torch.backends.cudnn.benchmark = False
 
 
+def model_to_device(model, cfg, use_ddp=True):
+    assert cfg.device in ['cuda', 'npu'], 'Only available for cuda or npu devices.'
+    if use_ddp:
+        if cfg.device == 'npu':
+            model = model.npu()
+        elif cfg.device == 'cuda':
+            model = model.cuda()
+    else:
+        if cfg.device == 'npu':
+            model = model.npu(cfg.gpu_ids[0])
+        elif cfg.device == 'cuda':
+            model = model.cuda(cfg.gpu_ids[0])
+    return model
+
+
 def train_segmentor(model,
                     dataset,
                     cfg,
@@ -103,14 +118,16 @@ def train_segmentor(model,
         find_unused_parameters = cfg.get('find_unused_parameters', False)
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
+        model = model_to_device(model, cfg, True)
         model = MMDistributedDataParallel(
-            model.cuda(),
+            model,
             device_ids=[torch.cuda.current_device()],
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters)
     else:
+        model = model_to_device(model, cfg, False)
         model = MMDataParallel(
-            model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+            model, device_ids=cfg.gpu_ids)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
@@ -223,14 +240,16 @@ def train_detector(model,
         find_unused_parameters = cfg.get('find_unused_parameters', False)
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
+        model = model_to_device(model, cfg, True)
         model = MMDistributedDataParallel(
-            model.cuda(),
+            model,
             device_ids=[torch.cuda.current_device()],
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters)
     else:
+        model = model_to_device(model, cfg, False)
         model = MMDataParallel(
-            model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+            model, device_ids=cfg.gpu_ids)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
@@ -261,6 +280,8 @@ def train_detector(model,
 
     # fp16 setting
     fp16_cfg = cfg.get('fp16', None)
+    if fp16_cfg is None and cfg.get('device', None) == 'npu':
+        fp16_cfg = dict(loss_scale='dynamic')
     if fp16_cfg is not None:
         optimizer_config = Fp16OptimizerHook(
             **cfg.optimizer_config, **fp16_cfg, distributed=distributed)
