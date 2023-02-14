@@ -4,6 +4,7 @@ import copy
 import torch
 from mmcv.cnn import ConvModule, build_conv_layer
 from mmcv.runner import BaseModule, force_fp32
+from mmdet.core import build_bbox_coder, multi_apply
 from torch import nn
 
 from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
@@ -11,7 +12,6 @@ from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
 from mmdet3d.core.post_processing import nms_bev
 from mmdet3d.models import builder
 from mmdet3d.models.utils import clip_sigmoid
-from mmdet.core import build_bbox_coder, multi_apply
 from ..builder import HEADS, build_loss
 
 
@@ -455,7 +455,7 @@ class CenterHead(BaseModule):
             (gt_bboxes_3d.gravity_center, gt_bboxes_3d.tensor[:, 3:]),
             dim=1).to(device)
         max_objs = self.train_cfg['max_objs'] * self.train_cfg['dense_reg']
-        grid_size = torch.tensor(self.train_cfg['grid_size'])
+        grid_size = torch.tensor(self.train_cfg['grid_size']).to(device)
         pc_range = torch.tensor(self.train_cfg['point_cloud_range'])
         voxel_size = torch.tensor(self.train_cfg['voxel_size'])
 
