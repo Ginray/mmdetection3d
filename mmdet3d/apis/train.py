@@ -4,7 +4,6 @@ import warnings
 
 import numpy as np
 import torch
-from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import (HOOKS, DistSamplerSeedHook, EpochBasedRunner,
                          Fp16OptimizerHook, OptimizerHook, build_optimizer,
                          build_runner, get_dist_info)
@@ -13,6 +12,7 @@ from mmdet.core import DistEvalHook as MMDET_DistEvalHook
 from mmdet.core import EvalHook as MMDET_EvalHook
 from mmdet.datasets import build_dataloader as build_mmdet_dataloader
 from mmdet.datasets import replace_ImageToTensor
+from mmdet.utils import build_dp, build_ddp
 from mmdet.utils import get_root_logger as get_mmdet_root_logger
 from mmseg.core import DistEvalHook as MMSEG_DistEvalHook
 from mmseg.core import EvalHook as MMSEG_EvalHook
@@ -118,16 +118,23 @@ def train_segmentor(model,
         find_unused_parameters = cfg.get('find_unused_parameters', False)
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
-        model = model_to_device(model, cfg, True)
-        model = MMDistributedDataParallel(
+        # model = model_to_device(model, cfg, True)
+        # model = MMDistributedDataParallel(
+        #     model,
+        #     device_ids=[torch.cuda.current_device()],
+        #     broadcast_buffers=False,
+        #     find_unused_parameters=find_unused_parameters)
+        model = build_ddp(
             model,
-            device_ids=[torch.cuda.current_device()],
+            cfg.device,
+            device_ids=[int(os.environ['LOCAL_RANK'])],
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters)
     else:
-        model = model_to_device(model, cfg, False)
-        model = MMDataParallel(
-            model, device_ids=cfg.gpu_ids)
+        # model = model_to_device(model, cfg, False)
+        # model = MMDataParallel(
+        #     model, device_ids=cfg.gpu_ids)
+        model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
@@ -240,16 +247,23 @@ def train_detector(model,
         find_unused_parameters = cfg.get('find_unused_parameters', False)
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
-        model = model_to_device(model, cfg, True)
-        model = MMDistributedDataParallel(
+        # model = model_to_device(model, cfg, True)
+        # model = MMDistributedDataParallel(
+        #     model,
+        #     device_ids=[torch.cuda.current_device()],
+        #     broadcast_buffers=False,
+        #     find_unused_parameters=find_unused_parameters)
+        model = build_ddp(
             model,
-            device_ids=[torch.cuda.current_device()],
+            cfg.device,
+            device_ids=[int(os.environ['LOCAL_RANK'])],
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters)
     else:
-        model = model_to_device(model, cfg, False)
-        model = MMDataParallel(
-            model, device_ids=cfg.gpu_ids)
+        # model = model_to_device(model, cfg, False)
+        # model = MMDataParallel(
+        #     model, device_ids=cfg.gpu_ids)
+        model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)

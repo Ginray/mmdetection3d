@@ -10,6 +10,7 @@ from os import path as osp
 
 import mmcv
 import torch
+# fixme 要先import一下才不会出错
 import torch.distributed as dist
 from mmcv import Config, DictAction
 from mmcv.runner import get_dist_info, init_dist
