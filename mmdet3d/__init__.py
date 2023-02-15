@@ -19,9 +19,9 @@ def digit_version(version_str):
 
 
 mmcv_minimum_version = '1.5.2'
-mmcv_maximum_version = '1.7.0'
+# fixme 和主线同步 mmcv_maximum_version = '1.7.0'
+mmcv_maximum_version = '1.7.1'
 mmcv_version = digit_version(mmcv.__version__)
-
 
 assert (mmcv_version >= digit_version(mmcv_minimum_version)
         and mmcv_version <= digit_version(mmcv_maximum_version)), \

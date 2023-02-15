@@ -222,7 +222,12 @@ class MVXTwoStageDetector(Base3DDetector):
         """
         voxels, coors, num_points = [], [], []
         for res in points:
-            res_voxels, res_coors, res_num_points = self.pts_voxel_layer(res)
+            # fixme npu支持Voxelization ops时回退该代码
+            cpu_pts_voxel_layer = self.pts_voxel_layer.to('cpu')
+            res = res.to('cpu')
+            # res_voxels, res_coors, res_num_points = self.pts_voxel_layer(res)
+            res_voxels, res_coors, res_num_points = cpu_pts_voxel_layer(res)
+            res_voxels, res_coors, res_num_points = res_voxels.to('npu'), res_coors.to('npu'), res_num_points.to('npu')
             voxels.append(res_voxels)
             coors.append(res_coors)
             num_points.append(res_num_points)
