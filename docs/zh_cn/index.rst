@@ -91,6 +91,12 @@ Welcome to MMDetection3D's documentation!
 
    switch_language.md
 
+.. toctree::
+   :maxdepth: 1
+   :caption: 设备支持
+
+   device/npu.md
+
 Indices and tables
 ==================
 
